@@ -11,14 +11,13 @@ class ProcessPool:
     process_limit = cpu_count() * 2
 
     @staticmethod
-    def _worker(current_queue, lock, queue_count):
+    def _worker(current_queue, lock):
         """Spawns worker process."""
         while True:
             if not current_queue.empty():
                 with lock:
                     # get function and arguments from queue
                     func, *args = current_queue.get()
-                    queue_count.value -= 1
                 # execute the function
                 if args:
                     func(*args)
@@ -27,11 +26,17 @@ class ProcessPool:
 
     @staticmethod
     def process_task(func, *args):
-        """Gets the process with least tasks and assigns it a new task"""
-        free_process = min(ProcessPool._process_list, key=lambda x: x['task_count'].value)
-        with free_process['lock']:
-            free_process['queue'].put((func, *args))
-            free_process['task_count'].value += 1
+        ProcessPool._task_count += 1
+        # get the least busy process. acquire locks to check queue for each process
+        for process in ProcessPool._process_list:
+            process['lock'].acquire()
+
+        free_process = min(ProcessPool._process_list, key=lambda x: x['queue'].qsize())
+        free_process['queue'].put((func, *args))
+
+        for process in ProcessPool._process_list:
+            process['lock'].release()
+        ProcessPool._task_count -= 1
 
     @staticmethod
     def kill_if_empty():
@@ -55,19 +60,17 @@ class ProcessPool:
 
     @staticmethod
     def _add_process(info):
-        """Add new process to worker pool"""
         ProcessPool._process_list.append(info)
 
     @staticmethod
     def initialize():
-        """Initialize processes for task handling"""
         ProcessPool._process_list = []
 
         for i in range(ProcessPool.process_limit):
             current_queue = Manager().Queue()
             lock = Lock()
             task_count = Value('i', 0)
-            p = Process(target=ProcessPool._worker, args=(current_queue, lock, task_count))
+            p = Process(target=ProcessPool._worker, args=(current_queue, lock))
             info = {"process_object": p, "queue": current_queue, 'lock': lock, 'task_count': task_count}
             ProcessPool._add_process(info)
 
@@ -85,6 +88,8 @@ class ProcessPool:
 
 
 if __name__ == "__main__":
+    from time import sleep
+
     # function for working processes
     def sleep_task(sec):
         print("task is loading")
