@@ -36,7 +36,7 @@ class ProcessPool:
     @staticmethod
     def kill_if_empty():
         """Waits until task count for all processes is 0 and kills them"""
-        while ProcessPool._task_count == 0:
+        while True:
             is_all_empty = True
             for process in ProcessPool._process_list:
                 if process['task_count'].value == 0:
