@@ -1,6 +1,7 @@
 from multiprocessing import Process, Manager, Lock, Value, cpu_count
 import os
 import signal
+from time import sleep
 
 
 class ProcessPool:
@@ -18,25 +19,23 @@ class ProcessPool:
                     # get function and arguments from queue
                     func, *args = current_queue.get()
                     queue_count.value -= 1
-
                 # execute the function
                 if args:
                     func(*args)
                 else:
                     func()
 
-
     @staticmethod
     def process_task(func, *args):
-        ProcessPool._task_count += 1
-        # get the least busy process
+        """Gets the process with least tasks and assigns it a new task"""
         free_process = min(ProcessPool._process_list, key=lambda x: x['task_count'].value)
-        free_process['queue'].put((func, *args))
-        free_process['task_count'].value += 1
-        ProcessPool._task_count -= 1
+        with free_process['lock']:
+            free_process['queue'].put((func, *args))
+            free_process['task_count'].value += 1
 
     @staticmethod
     def kill_if_empty():
+        """Waits until task count for all processes is 0 and kills them"""
         while ProcessPool._task_count == 0:
             is_all_empty = True
             for process in ProcessPool._process_list:
@@ -44,18 +43,23 @@ class ProcessPool:
                     continue
                 else:
                     is_all_empty = False
+                    break
+
             if is_all_empty:
                 break
+
         for process in ProcessPool._process_list:
             pid = process['process_object'].pid
             os.kill(pid, signal.SIGTERM)
 
     @staticmethod
     def _add_process(info):
+        """Add new process to worker pool"""
         ProcessPool._process_list.append(info)
 
     @staticmethod
     def initialize():
+        """Initialize processes for task handling"""
         ProcessPool._process_list = []
 
         for i in range(ProcessPool.process_limit):
@@ -80,8 +84,6 @@ class ProcessPool:
 
 
 if __name__ == "__main__":
-    from time import sleep
-
     # function for working processes
     def sleep_task(sec):
         print("task is loading")

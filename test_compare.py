@@ -8,8 +8,8 @@ def test_function(x):
     return x**10
 
 
-iterations = 1, 10, 100
-wait_times = [0.001, 0.005, 0.01, 0.05]
+iterations = 10, 100, 1000
+wait_times = [0.01, 0.001, 0.0001]
 for iteration in iterations:
     print("\nRunning with {} iterations".format(str(iteration)))
     for wait_time in wait_times:
@@ -21,14 +21,12 @@ for iteration in iterations:
         end = time.time() - start
         print("\t Consecutive: ", str(end))
 
-
         # *** multiprocessing.Pool ***
         start = time.time()
         pool = Pool(processes=cpu_count() * 2)
         powers = pool.map(test_function, [wait_time]*iteration)
         end = time.time() - start
         print("\t multiprocessing.Pool: ", str(end))
-
 
         # *** ProcessPool implementation***
         start = time.time()
@@ -38,6 +36,3 @@ for iteration in iterations:
         ProcessPool.kill_if_empty()
         end = time.time() - start
         print("\t ProcessPool implementation: ", str(end), '\n')
-
-
-
