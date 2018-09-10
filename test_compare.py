@@ -19,14 +19,14 @@ for iteration in iterations:
         for i in range(iteration):
             test_function(wait_time)
         end = time.time() - start
-        print("\t Consecutive: ", str(end))
+        print("\t\tConsecutive: ", str(end))
 
         # *** multiprocessing.Pool ***
         start = time.time()
         pool = Pool(processes=cpu_count() * 2)
         powers = pool.map(test_function, [wait_time]*iteration)
         end = time.time() - start
-        print("\t multiprocessing.Pool: ", str(end))
+        print("\t\tmultiprocessing.Pool: ", str(end))
 
         # *** ProcessPool implementation***
         start = time.time()
@@ -35,4 +35,4 @@ for iteration in iterations:
             ProcessPool.process_task(test_function, wait_time)
         ProcessPool.kill_if_empty()
         end = time.time() - start
-        print("\t ProcessPool implementation: ", str(end), '\n')
+        print("\t\tProcessPool implementation: ", str(end), '\n')

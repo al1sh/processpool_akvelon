@@ -84,20 +84,6 @@ class ProcessPool:
             process['process_object'].start()
 
 
-if __name__ == "__main__":
-    # function for working processes
-    def sleep_task(sec):
-        print("task is loading")
-        sleep(sec)
-
-    run_count = 24
-    for i in range(run_count):
-        ProcessPool.process_task(sleep_task, 5)
-
-    ProcessPool.kill_if_empty()
-
-    print("main process exited")
-
 
 
 
