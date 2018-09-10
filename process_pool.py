@@ -17,7 +17,6 @@ class ProcessPool:
             self.lock = lock
             self.task_count = task_count
 
-    @staticmethod
     def _worker(current_queue, lock, queue_count):
         """Spawns worker process."""
         while True:
@@ -25,53 +24,13 @@ class ProcessPool:
                 with lock:
                     # get function and arguments from queue
                     func, *args = current_queue.get()
-                    queue_count.value -= 1
                 # execute the function
                 if args:
                     func(*args)
                 else:
                     func()
-
-    @staticmethod
-    def process_task(func, *args):
-        """Gets the process with least tasks and assigns it a new task"""
-        if not ProcessPool.is_active:
-            ProcessPool.initialize()
-
-        free_process = min(ProcessPool._process_list, key=lambda x: x.task_count.value)
-
-        with free_process.lock:
-            free_process.queue.put((func, *args))
-            free_process.task_count.value += 1
-
-    @staticmethod
-    def kill_empty():
-        """Waits until task count for all processes is 0 and kills them"""
-        while True:
-            is_all_empty = True
-            for process in ProcessPool._process_list:
-                if process.task_count.value == 0:
-                    continue
-                else:
-                    is_all_empty = False
-                    sleep(0.01)
-                    break
-
-            if is_all_empty:
-                break
-
-        for process in ProcessPool._process_list:
-            pid = process.process_object.pid
-            os.kill(pid, signal.SIGTERM)
-
-    @staticmethod
-    def _add_process(info):
-        """Add new process to worker pool"""
-        ProcessPool._process_list.append(info)
-
-    @staticmethod
-    def get_process_list():
-        return ProcessPool._process_list
+                current_queue.task_done()
+                queue_count.value -= 1
 
     @staticmethod
     def initialize():
@@ -89,6 +48,36 @@ class ProcessPool:
         ProcessPool.start_processes()
         ProcessPool.is_active = True
 
+    def _add_process(info):
+        """Add new process to worker pool"""
+        ProcessPool._process_list.append(info)
+
+    @staticmethod
+    def process_task(func, *args):
+        """Gets the process with least tasks and assigns it a new task"""
+        if not ProcessPool.is_active:
+            ProcessPool.initialize()
+
+        free_process = min(ProcessPool._process_list, key=lambda x: x.task_count.value)
+
+        with free_process.lock:
+            free_process.queue.put((func, *args))
+            free_process.task_count.value += 1
+
+    @staticmethod
+    def kill_empty():
+        """Waits until tasks for all processes finish and then terminates them"""
+        for process in ProcessPool.get_process_list():
+            process.queue.join()
+
+        for process in ProcessPool._process_list:
+            pid = process.process_object.pid
+            os.kill(pid, signal.SIGTERM)
+
+    @staticmethod
+    def get_process_list():
+        return ProcessPool._process_list
+
     @staticmethod
     def wait_all():
         for process in ProcessPool._process_list:
@@ -97,8 +86,3 @@ class ProcessPool:
     def start_processes():
         for process in ProcessPool._process_list:
             process.process_object.start()
-
-
-
-
-
