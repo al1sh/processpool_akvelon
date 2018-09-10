@@ -1,12 +1,10 @@
 import os
 import signal
 from multiprocessing import Process, Manager, Lock, Value, cpu_count
-from time import sleep
 
 
 class ProcessPool:
     _process_list = []
-    _task_count = 0
     is_active = False
     process_limit = cpu_count() * 2
 
@@ -16,21 +14,6 @@ class ProcessPool:
             self.queue = queue
             self.lock = lock
             self.task_count = task_count
-
-    def _worker(current_queue, lock, queue_count):
-        """Spawns worker process."""
-        while True:
-            if not current_queue.empty():
-                with lock:
-                    # get function and arguments from queue
-                    func, *args = current_queue.get()
-                # execute the function
-                if args:
-                    func(*args)
-                else:
-                    func()
-                current_queue.task_done()
-                queue_count.value -= 1
 
     @staticmethod
     def initialize():
@@ -45,12 +28,8 @@ class ProcessPool:
             info = ProcessPool.ProcessInfo(p, current_queue, lock, task_count)
             ProcessPool._add_process(info)
 
-        ProcessPool.start_processes()
+        ProcessPool._start_processes()
         ProcessPool.is_active = True
-
-    def _add_process(info):
-        """Add new process to worker pool"""
-        ProcessPool._process_list.append(info)
 
     @staticmethod
     def process_task(func, *args):
@@ -58,6 +37,7 @@ class ProcessPool:
         if not ProcessPool.is_active:
             ProcessPool.initialize()
 
+        # returns process with minimum task count
         free_process = min(ProcessPool._process_list, key=lambda x: x.task_count.value)
 
         with free_process.lock:
@@ -75,14 +55,37 @@ class ProcessPool:
             os.kill(pid, signal.SIGTERM)
 
     @staticmethod
-    def get_process_list():
-        return ProcessPool._process_list
-
-    @staticmethod
     def wait_all():
         for process in ProcessPool._process_list:
             process.process_object.join()
 
-    def start_processes():
+    @staticmethod
+    def get_process_list():
+        return ProcessPool._process_list
+
+    @staticmethod
+    def _start_processes():
         for process in ProcessPool._process_list:
             process.process_object.start()
+
+    @staticmethod
+    def _add_process(info):
+        """Add new process to worker pool"""
+        ProcessPool._process_list.append(info)
+
+    @staticmethod
+    def _worker(current_queue, lock, queue_count):
+        """Spawns worker process."""
+        while True:
+            if not current_queue.empty():
+                with lock:
+                    # get function and arguments from queue
+                    func, *args = current_queue.get()
+                # execute the function
+                if args:
+                    func(*args)
+                else:
+                    func()
+
+                current_queue.task_done()
+                queue_count.value -= 1
