@@ -47,7 +47,7 @@ class ProcessPoolTests(unittest.TestCase):
         process_list = ProcessPool.get_process_list()
 
         for process in process_list:
-            self.assertEqual(process.task_count.value, process.queue.qsize(), 0)
+            self.assertEqual(process.task_count.value, 0)
 
         sleep_sec = 0.1
         for i in range(multiprocessing.cpu_count() * 4):

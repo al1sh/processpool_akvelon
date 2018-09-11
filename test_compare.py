@@ -30,12 +30,13 @@ def main():
             print("\t\tmultiprocessing.Pool: ", str(end))
 
             # *** ProcessPool implementation***
-            start = time.time()
             ProcessPool.initialize()
+            start = time.time()
             for i in range(iteration):
                 ProcessPool.process_task(test_function, wait_time)
-            ProcessPool.kill_empty()
+            ProcessPool.wait_queues()
             end = time.time() - start
+            ProcessPool.kill_processes()
             print("\t\tProcessPool implementation: ", str(end), '\n')
 
 
